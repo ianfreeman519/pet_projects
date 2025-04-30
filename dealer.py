@@ -1,5 +1,5 @@
 import numpy as np
-from utils import create_shoe, hand_values, best_value
+from utils import create_shoe, hand_values, best_value, Action
 
 class Dealer:
     """
@@ -7,9 +7,9 @@ class Dealer:
     """
     def __init__(self, shoe_length=8):
         self.shoe           = create_shoe(shoe_length)
-        self.hand           = self.deal_hand(2)  # populated each round: [(cards, bet, is_doubled)]
+        self.hand           = self.deal_cards(2)  # populated each round: [(cards, bet, is_doubled)]
         
-    def deal_hand(self, n):
+    def deal_cards(self, n):
         hand = []
         for _ in range(n):
             card = self.shoe.pop()
@@ -22,22 +22,26 @@ class Dealer:
         best = best_value(self.hand)
         
         # If the dealer has a soft total (an Ace valued as 11) and the hand value is 17, they will hit
-        if best == 17 and any(v == 17 for v in vals):
+        if best == 17:
             # Check if the dealer has a soft 17 (Ace + 6) and needs to hit
-            if 'A' in [card[0] for card in self.hand] and 6 in [card[1] for card in self.hand]:
+            if len(vals) >= 2:      # TODO Implement stand 17 games
                 print(f"Dealer's soft 17: {self.hand}, hitting.")
-                self.hit()
-                return  # After hitting, we return to recheck the hand
+                return  Action.HIT # After hitting, we return to recheck the hand
             else:
                 print(f"Dealer stands with {self.hand}")
-                return  # Stand
+                return  Action.STAND # Stand
 
         # Dealer hits if the best value is less than 17
         if best < 17:
             print(f"Dealer's hand value: {best}, hitting.")
-            self.hit()  # Dealer hits if they have less than 17
-            return  # Recheck the hand after hitting
+            return  Action.HIT
 
         # Dealer stands if the best value is 17 or more
         print(f"Dealer's hand value: {best}, standing.")
-        return  # Stand
+        return  Action.STAND
+
+    def new_round(self):
+        self.hand.clear()
+        
+    def clear_shoe(self):
+        self.shoe.clear()

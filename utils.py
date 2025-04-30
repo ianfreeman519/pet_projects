@@ -96,13 +96,14 @@ def create_shoe(n=8, seed=None):
     random.shuffle(shoe)
     return shoe
 
-# Deal function - takes in a shoe, pops n off the top, and returns the deck and hand
-def deal(shoe, n):
-    hand = []
-    for _ in range(n):
-        card = shoe.pop()
-        hand.append(card)
-    return hand, shoe
+# Determining value of card - Only used in Player.observe_count() and Player.strategy() to make logic easier to read:
+def card_value(card):
+    if card == 'A':
+        return 11
+    elif card in ['10', 'J', 'Q', 'K']:
+        return 10
+    else:
+        return int(card)
 
 # Hand values function - returns a list of the possible combinations of hands
 # Lists longer than 2 implies a soft total case, and there is an ace somewhere in the hand
