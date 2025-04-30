@@ -65,7 +65,7 @@ class Player:
                 return Action.SPLIT # Splitting requires an immediate return, a "no split" does not
         
         # Now check for soft totals - if statement here in case above split totals sets response to "nos"
-        if len(values) > 1:
+        if len(values) > 1 and min(values) < 11:
             response = self.decide_deviation(soft_totals[(min(values), upcard)])
         
         # Finally we see the hard total table:
@@ -75,7 +75,7 @@ class Player:
         # We interpret the results and return the decision - Handle the case of "DST" - Double then stand
         if response == "dst" and len(hand) == 2:
             response = "dou"
-        else:
+        elif response == "dst" and len(hand) != 2:
             response = "sta"
         
         # Return decision logic
@@ -92,13 +92,24 @@ class Player:
         self.hands.clear()
         self.bets.clear()
 
-    def place_bet(self, hand_idx):
+    # TODO have player be able to play multiple hands
+    # This should only be called once to place the initial bets of each round
+    # We need this to make empty hands for each bet placed
+    def place_bet(self):
         bet = self.bet_deviation()
         self.bankroll -= bet
-        self.bets[hand_idx] += bet
+        self.bets.append(bet)
+        self.hands.append([])
         return bet
     
-    def take_insurance(self):
+    def take_insurance(self, hand_idx):
+        if self.true_count >= 3:
+            self.bankroll -= 0.5 * self.bets[hand_idx]
+            return True
+        else:
+            return False
+    
+    def take_even_money(self, hand_idx):
         if self.true_count >= 3:
             return True
         else:
@@ -112,28 +123,55 @@ class Player:
     # ---------- gameplay hooks ----------
     def observe_count(self, cards, n_decks_remaining):
         # TODO right now n_decks_remaining is a float, but we round to nearest half - might change something might not
+        
+        # print(f"cards = {cards}")
         for card in cards:
             if card_value(card) >= 10:
                 self.count -= 1
             elif card_value(card) <= 6:
                 self.count += 1
         self.true_count = self.count / n_decks_remaining
+        
+    def double(self, hand_idx):
+        bet = self.bets[hand_idx]
+        self.bankroll -= bet
+        self.bets[hand_idx] += bet
+        
+    # def split(self, hand_idx):
+        
     
-    def receive_card(self, cards, hand_idx=0):
-        for card in cards:
-            self.hands[hand_idx].append(card)
-            self.cards_taken += 1
+    
+    #This expects something else to have made an empty list inside the self.hands list 
+    #Also only ever take one card
+    def take_card(self, card, hand_idx):
+        self.hands[hand_idx].extend(card)
 
     def decide(self, dealer_upcard, hand_idx=0):
         return self.strategy(dealer_upcard, hand_idx)
 
 
     # ---------- settlement ----------
-    def settle(self, hand_idx, outcome, BJ_payout=1.5):
+    def settle(self, hand_idx, outcome, printout=False, BJ_payout=1.5):
+        bet = self.bets[hand_idx]
+
         if outcome == Outcome.WIN:
-            self.bankroll += 2   * self.bets[hand_idx]
+            payout = 2 * bet
+            self.bankroll += payout
+            if printout:
+                print(f"[WIN] Hand {hand_idx}: Won ${bet:.2f}, total payout = ${payout:.2f}")
+        
         elif outcome == Outcome.BJ:
-            self.bankroll += BJ_payout * self.bets[hand_idx]
+            payout = (1+BJ_payout) * bet
+            self.bankroll += payout
+            if printout:
+                print(f"[BLACKJACK] Hand {hand_idx}: Blackjack pays {BJ_payout+1:.2f} × ${bet:.2f} = ${payout:.2f}")
+        
         elif outcome == Outcome.PUSH:
-            self.bankroll += 1.0 * self.bets[hand_idx]
-        # loss: do nothing – chips already removed
+            payout = 1.0 * bet
+            self.bankroll += payout
+            if printout:
+                print(f"[PUSH] Hand {hand_idx}: Bet returned, payout = ${payout:.2f}")
+
+
+        # else silently ignore unknown outcomes
+

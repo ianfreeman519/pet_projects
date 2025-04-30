@@ -5,17 +5,40 @@ class Dealer:
     """
     Dealer of the house - handles the shoe, the remaining cards
     """
-    def __init__(self, shoe_length=8):
-        self.shoe           = create_shoe(shoe_length)
-        self.hand           = self.deal_cards(2)  # populated each round: [(cards, bet, is_doubled)]
+    
+    #This should be called once ever 
+    def __init__(self, num_decks_in_shoe=8, decks_to_cut=1):
+        #need to know so we can make new shoes
+        self.num_decks_in_shoe = num_decks_in_shoe 
+        #the dealer needs to know when to stop dealing the shoe
+        self.decks_to_cut = decks_to_cut
+        self.decks_remaining = num_decks_in_shoe
+        self.shoe = []
+        self.hand = []
         
+        
+    #This shold be to only way the shoe gives out cards
     def deal_cards(self, n):
         hand = []
         for _ in range(n):
             card = self.shoe.pop()
             hand.append(card)
+        
+        #round to the nearest half
+        #TODO check if we want to round down always???
+        self.decks_remaining = round(len(self.shoe) / 52 * 2) / 2
+
+        #let the table know that the shoe is over after this round
+        if len(self.shoe) < self.decks_to_cut * 52:
+            self.cut_card_out = True
+        
         return hand
     
+    #to give the dealer their own cards
+    def take_cards(self, cards):
+        self.hand.extend(cards)
+    
+    #logic to tell the dealer to draw or stand their own hand
     def take_actions(self):
         # Calculate the possible hand values
         vals = hand_values(self.hand)
@@ -42,6 +65,10 @@ class Dealer:
 
     def new_round(self):
         self.hand.clear()
+        
+    def new_shoe(self):
+        self.shoe = create_shoe(self.num_decks_in_shoe)
+        self.cut_card_out = False
         
     def clear_shoe(self):
         self.shoe.clear()
