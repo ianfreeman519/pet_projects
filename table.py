@@ -32,7 +32,13 @@ class Table:
         while not self.dealer.cut_card_out:
             
             if self.printout:
+                print()
                 print("NEW ROUND")
+                print()
+                print(f"player count = {self.plist[0].count} ")
+                print(f"player bankroll before {self.plist[0].bankroll}")
+                
+            
             
             self.dealer.new_round()
             #each player places bet
@@ -40,7 +46,7 @@ class Table:
                 player.new_round()
                 player.place_bet()
                 
-            print(f"player bets{self.plist[0].bets}")
+            
             
             
             #dealer takes upcard
@@ -64,13 +70,12 @@ class Table:
             for player in self.plist:
                 for idx, bet in enumerate(player.bets):
                     player.take_card(self.deal_card(),idx)
-                    
-            print(f"dealer hand {self.dealer.hand}")
-                    
-            print(f"player hands {self.plist[0].hands}")
-            
-            
-            print(f"player count = {self.plist[0].count} ")
+              
+              
+            if self.printout: 
+                print(f"player bets{self.plist[0].bets}")     
+                print(f"dealer hand {self.dealer.hand}")       
+                print(f"player hands {self.plist[0].hands}")
             
             
             # Check for dealer blackjack
@@ -101,24 +106,30 @@ class Table:
                             else:
                                 if self.printout:
                                     print(f"[INSURANCE LOSS] Hand {idx}: Lost insurance bet of ${insurance_bet:.2f}")
-
+                                    
                     # Normal blackjack handling
                     if is_bj:
                         if dealer_blackjack:
+                            if self.printout:
+                                print(f"[BLACKJACK PUSH] Hand {idx}: Player has blackjack {hand}, dealer also has blackjack.")
                             player.settle(idx, Outcome.PUSH, self.printout, BJ_payout=1.5)
                         else:
+                            if self.printout:
+                                print(f"[BLACKJACK WIN] Hand {idx}: Player has blackjack {hand}, dealer does not.")
                             player.settle(idx, Outcome.BJ, self.printout, BJ_payout=1.5)
+
                             
             #if dealer has blackjack update count
             if dealer_blackjack:
                 for player in self.plist:
-                    player.observe_count(self.dealer.hand[1:],self.dealer.decks_remaining)
-                    
-                print(f"player count = {self.plist[0].count} ")
+                    player.observe_count(self.dealer.hand[1], self.dealer.decks_remaining)
+                
+                if self.printout:    
+                    print(f"player count = {self.plist[0].count} ")
                 continue #this gets us to the next round
     
     
-            # After checking blackjacks go thorugh and each player plays all their hands
+            # After checking blackjacks go through and each player plays all their hands
             for player in self.plist:
                 hand_idx = 0
                 while hand_idx < len(player.hands):
@@ -132,14 +143,14 @@ class Table:
                                     
                             if best_value(player.hands[hand_idx]) == 0:
                                 if self.printout:
-                                    print(f"[BUST] Hand {hand_idx} busted")
+                                    print(f"[BUST] Hand {hand_idx} busted, {player.hands[hand_idx]}")
                                 break
 
                         elif decision == Action.DOUBLE:
                             player.take_card(self.deal_card(), hand_idx)
                             player.double(hand_idx)
                             if self.printout:
-                                print(f"[DOUBLE] Hand {hand_idx} doubled")
+                                print(f"[DOUBLE] Hand {hand_idx} doubled, {player.hands[hand_idx]}")
                             break
 
                         elif decision == Action.SPLIT:
@@ -147,8 +158,6 @@ class Table:
                             card2 = player.hands[hand_idx][1]
                             new_card_1 = self.deal_card()[0]
                             new_card_2 = self.deal_card()[0]
-                            
-                            print([card1, new_card_1])
 
                             # Update current hand
                             player.hands[hand_idx] = [card1, new_card_1]
@@ -156,6 +165,8 @@ class Table:
                             # Add split hand
                             player.hands.append([card2, new_card_2])
                             player.bets.append(player.bets[hand_idx])
+                            
+                            player.bankroll -= player.bets[hand_idx]
 
                             if self.printout:
                                 print(f"[SPLIT] Hand {hand_idx} split into {len(player.hands)} hands total")
@@ -164,17 +175,76 @@ class Table:
 
                         elif decision == Action.STAND:
                             if self.printout:
-                                print(f"[STAND] Hand {hand_idx} stands")
+                                print(f"[STAND] Hand {hand_idx} stands, {player.hands[hand_idx]}")
                             break
 
                     hand_idx += 1
+                    
+            # Now that dealer downcard is revealed (non-blackjack case), players observe it
+            for player in self.plist:
+                player.observe_count([self.dealer.hand[1]], self.dealer.decks_remaining)
+
+            # Check if any player hands are not busted and not blackjack (i.e., still need to be compared)
+            any_active_hands = any(
+                best_value(hand) > 0 and not (best_value(hand) == 21 and len(hand) == 2)
+                for player in self.plist
+                for hand in player.hands)
+
+
+            if not any_active_hands:
+                # All player hands are busted → dealer does not draw
+                if self.printout:
+                    print("[ALL INACTIVE] Dealer does not draw cards.")
+
+                continue  # Move to next round
+
+            # Dealer plays out their hand
+            while True:
+                action = self.dealer.take_actions()
+                if action == Action.HIT:
+                    self.dealer.take_cards(self.deal_card())
+                    if self.printout:
+                        print(f"[DEALER HIT] New dealer hand: {self.dealer.hand}")
+                    if best_value(self.dealer.hand) == 0:
+                        if self.printout:
+                            print(f"[DEALER BUST] Dealer busted with hand: {self.dealer.hand}")
+                        break
+                elif action == Action.STAND:
+                    if self.printout:
+                        print(f"[DEALER STAND] Dealer stands with hand: {self.dealer.hand}")
+                    break
+            
+            
+            dealer_val = best_value(self.dealer.hand)
+            for player in self.plist:
+                for idx, hand in enumerate(player.hands):
+                    player_val = best_value(hand)
+                    is_bj = best_value(hand) == 21 and len(hand) == 2
+                    
+                    #so we dont double count balckjacks 
+                    #We should probably do all accounting right here though
+                    if is_bj:
+                        continue
+                    
+                    #This should take care of players busting and then dealer also busting
+                    elif player_val > dealer_val:
+                        if self.printout:
+                            print(f"dealer value {dealer_val}, player value {player_val}")
+                        
+                        player.settle(idx, Outcome.WIN, self.printout)
+                    
+                    elif player_val == dealer_val:
+                        player.settle(idx, Outcome.PUSH, self.printout)
 
     
+            for player in self.plist:
+                player.bankroll_history.append(player.bankroll)
+                player.hands_played += len(player.hands)
+                if self.printout:
+                    print(f"player bankroll after {player.bankroll}")
+
     
-    
-    
-    
-            self.dealer.cut_card_out = True
+            # self.dealer.cut_card_out = True
             
             
             

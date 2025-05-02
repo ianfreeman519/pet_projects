@@ -7,7 +7,7 @@ class Player:
     One seat at the table.  Holds its own bankroll, strategy and list of
     current hands (to support splits).
     """
-    def __init__(self, bankroll=0, bet_unit=1, bet_strategy="conservative"):
+    def __init__(self, bankroll=0, bet_unit=10, bet_strategy="conservative"):
         self.bankroll       = bankroll
         self.bet_unit       = bet_unit
         self.bet_strategy   = bet_strategy        # fn(hand, dealer_up)
@@ -16,6 +16,8 @@ class Player:
         self.hits_taken     = [] # Hits taken per hand - important to handle for DS cases (A,7) vs 7 or 8
         self.count          = 0
         self.true_count     = 0
+        self.bankroll_history = []
+        self.hands_played = 0
     
     # Helper for reading off strategy tables:
     def decide_deviation(self, response):
@@ -46,6 +48,7 @@ class Player:
     # --------- Strategy Definitions ---------
     def bet_deviation(self):
         new_bet = (self.true_count + 1) * self.bet_unit      # Bet function - we can change this later
+        new_bet = 10
         return min(new_bet, self.bet_unit)
     
     def strategy(self, upcard, hand_idx=0):
@@ -104,7 +107,6 @@ class Player:
     
     def take_insurance(self, hand_idx):
         if self.true_count >= 3:
-            self.bankroll -= 0.5 * self.bets[hand_idx]
             return True
         else:
             return False
@@ -131,6 +133,7 @@ class Player:
             elif card_value(card) <= 6:
                 self.count += 1
         self.true_count = self.count / n_decks_remaining
+        self.true_count = 0
         
     def double(self, hand_idx):
         bet = self.bets[hand_idx]

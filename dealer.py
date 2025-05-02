@@ -7,7 +7,7 @@ class Dealer:
     """
     
     #This should be called once ever 
-    def __init__(self, num_decks_in_shoe=8, decks_to_cut=1):
+    def __init__(self, num_decks_in_shoe=8, decks_to_cut=1, printout=False):
         #need to know so we can make new shoes
         self.num_decks_in_shoe = num_decks_in_shoe 
         #the dealer needs to know when to stop dealing the shoe
@@ -15,6 +15,7 @@ class Dealer:
         self.decks_remaining = num_decks_in_shoe
         self.shoe = []
         self.hand = []
+        self.printout = printout
         
         
     #This shold be to only way the shoe gives out cards
@@ -48,19 +49,26 @@ class Dealer:
         if best == 17:
             # Check if the dealer has a soft 17 (Ace + 6) and needs to hit
             if len(vals) >= 2:      # TODO Implement stand 17 games
-                print(f"Dealer's soft 17: {self.hand}, hitting.")
+                if self.printout:
+                    print(f"Dealer's soft 17: {self.hand}, hitting.")
+                
                 return  Action.HIT # After hitting, we return to recheck the hand
             else:
-                print(f"Dealer stands with {self.hand}")
+                if self.printout:
+                    print(f"Dealer stands with {self.hand}")
+                
                 return  Action.STAND # Stand
 
         # Dealer hits if the best value is less than 17
         if best < 17:
-            print(f"Dealer's hand value: {best}, hitting.")
+            if self.printout:
+                print(f"Dealer's hand value: {best}, hitting.")
+            
             return  Action.HIT
 
         # Dealer stands if the best value is 17 or more
-        print(f"Dealer's hand value: {best}, standing.")
+        if self.printout:
+            print(f"Dealer's hand value: {best}, standing.")
         return  Action.STAND
 
     def new_round(self):
