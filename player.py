@@ -7,7 +7,7 @@ class Player:
     One seat at the table.  Holds its own bankroll, strategy and list of
     current hands (to support splits).
     """
-    def __init__(self, bankroll=0, bet_unit=10, bet_strategy="conservative"):
+    def __init__(self, bankroll=0, bet_unit=10, bet_strategy="conservative", printout=False):
         self.bankroll       = bankroll
         self.bet_unit       = bet_unit
         self.bet_strategy   = bet_strategy        # fn(hand, dealer_up)
@@ -18,6 +18,7 @@ class Player:
         self.true_count     = 0
         self.bankroll_history = []
         self.hands_played = 0
+        self.printout = printout
     
     # Helper for reading off strategy tables:
     def decide_deviation(self, response):
@@ -59,12 +60,16 @@ class Player:
         
         # First check blackjack or bust - then don't check the rest
         if best_value(hand) >= 21:
+            if self.printout:
+                print(f"Player has blackjack, taking STAND action")
             return Action.STAND
         
         # Now check for splits (to handle case of two aces before hitting soft tottals)
         if len(hand) == 2 and (card_value(hand[0]) == card_value(hand[1])):
             response = self.decide_deviation(split_totals[(min(values), upcard)])
             if response == "yes":
+                if self.printout:
+                    print(f"Player has {self.hands[hand_idx]} against {upcard} at running {self.count}, true {self.true_count}, taking SPLIT ACTION")
                 return Action.SPLIT # Splitting requires an immediate return, a "no split" does not
         
         # Now check for soft totals - if statement here in case above split totals sets response to "nos"
@@ -84,10 +89,16 @@ class Player:
         # Return decision logic
         match response:
             case "sta":
+                if self.printout:
+                    print(f"Player has {self.hands[hand_idx]} against {upcard} at running {self.count}, true {self.true_count}, taking STAND ACTION")
                 return Action.STAND
             case "hit":
+                if self.printout:
+                    print(f"Player has {self.hands[hand_idx]} against {upcard} at running {self.count}, true {self.true_count}, taking HIT ACTION")                
                 return Action.HIT
             case "dou":
+                if self.printout:
+                    print(f"Player has {self.hands[hand_idx]} against {upcard} at running {self.count}, true {self.true_count}, taking DOUBLE ACTION")       
                 return Action.DOUBLE            
         
     # ---------- round‑level hooks ----------
@@ -154,25 +165,25 @@ class Player:
 
 
     # ---------- settlement ----------
-    def settle(self, hand_idx, outcome, printout=False, BJ_payout=1.5):
+    def settle(self, hand_idx, outcome, req_info, BJ_payout=1.5):
         bet = self.bets[hand_idx]
 
         if outcome == Outcome.WIN:
             payout = 2 * bet
             self.bankroll += payout
-            if printout:
+            if req_info or self.printout:
                 print(f"[WIN] Hand {hand_idx}: Won ${bet:.2f}, total payout = ${payout:.2f}")
         
         elif outcome == Outcome.BJ:
             payout = (1+BJ_payout) * bet
             self.bankroll += payout
-            if printout:
+            if req_info or self.printout:
                 print(f"[BLACKJACK] Hand {hand_idx}: Blackjack pays {BJ_payout+1:.2f} × ${bet:.2f} = ${payout:.2f}")
         
         elif outcome == Outcome.PUSH:
             payout = 1.0 * bet
             self.bankroll += payout
-            if printout:
+            if req_info or self.printout:
                 print(f"[PUSH] Hand {hand_idx}: Bet returned, payout = ${payout:.2f}")
 
 

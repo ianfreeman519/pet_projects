@@ -152,6 +152,6 @@ def hand_values(hand):
 
 # Best value for a given hand, which is important for dealers and making decisions given strategies
 def best_value(hand):
-    # Returns -1 if busted, otherwise returns 
+    # Returns 0 if busted, otherwise returns 
     valid = [x for x in hand_values(hand) if x <= 21]
     return max(valid) if valid else 0

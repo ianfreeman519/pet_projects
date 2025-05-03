@@ -25,8 +25,8 @@ class Dealer:
             card = self.shoe.pop()
             hand.append(card)
         
-        #round to the nearest half
-        #TODO check if we want to round down always???
+        # round to the nearest half
+        # TODO check if we want to round down always???
         self.decks_remaining = round(len(self.shoe) / 52 * 2) / 2
 
         #let the table know that the shoe is over after this round
